@@ -13,15 +13,23 @@ void FineGrainedList::insertIntoMiddle(int value, int pos)
 
     int currPos = 0;
     
+    queue_mutex.lock();
     Node* current = head;
+    
     while ((currPos < (pos - 1)) && (current->next != nullptr))
     {
         current = current->next;        
         currPos++;       
     }
     Node* next = current->next;
+
+    current->node_mutex.lock(); // it doesn't matter because queue is blocked
+    newNode->node_mutex.lock(); // it doesn't matter because queue is blocked
     current->next = newNode;
     newNode->next = next;
+    queue_mutex.unlock();
+    current->node_mutex.unlock();
+    newNode->node_mutex.unlock();
 }
 
 void FineGrainedList::push_back(int value)
@@ -64,19 +72,32 @@ void FineGrainedList::remove(int value)
 {
     Node *prev, *cur; 
 
+    queue_mutex.lock();
     prev = this-> head;
     cur = this-> head->next;
+
+    prev->node_mutex.lock(); 
+    queue_mutex.unlock();
+
+    cur->node_mutex.lock();
 
     while(cur)
     {
         if(cur->value == value)
         {
             prev->next = cur->next;
+            prev->node_mutex.unlock();
+            cur->node_mutex.unlock();
             delete cur;
             return;
         }
-
+        
+        Node* old_prev = prev;
         prev = cur;
         cur = cur->next;
+
+        old_prev->node_mutex.unlock(); 
+        cur->node_mutex.lock();
     }
+    prev->node_mutex.unlock();
 }
